@@ -1,0 +1,12 @@
+[package]
+name = "kreeftje"
+authors = ["Koen Westendorp <koensswestendorp@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+console = "0.15.0"
+reqwest = { version = "0.11", features = ["blocking"] }
+scraper = "0.13"
+webbrowser = "0.7.1"
+
