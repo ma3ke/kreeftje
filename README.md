@@ -39,7 +39,8 @@ Within the program, the following key bindings can be used for navigation.
 
 `o`, `Enter`
 : Open the selected story in the browser.
-: (That browser will be the default browser for your system, and respects your `$BROWSER` environment variable. For further information, see the documentation of the [webbrowser](https://docs.rs/webbrowser/latest/webbrowser/) crate that is used under the hood.)
+
+(That browser will be the default browser for your system, and respects your `$BROWSER` environment variable. For further information, see the documentation of the [webbrowser](https://docs.rs/webbrowser/latest/webbrowser/) crate that is used under the hood.)
 
 `q`, `<ctrl-C>`
 : Quit the program.
