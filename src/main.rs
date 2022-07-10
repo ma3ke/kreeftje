@@ -1,7 +1,7 @@
 use console::{Key, Term};
 use reqwest::blocking;
-use scraper::Selector;
-use std::io::Write;
+use scraper::{ElementRef, Html, Selector};
+use std::{borrow::BorrowMut, io::Write};
 
 mod story;
 mod tags;
@@ -18,13 +18,12 @@ const STORIES_PER_SITE_PAGE: usize = 25;
 //     stories[start..end].to_vec()
 // }
 
-fn get_stories(page: u16) -> Result<Vec<Story>, Box<dyn std::error::Error>> {
-    let url = format!("{PAGE_URL}/{page}");
+fn get_page(url: String) -> Result<Html, Box<dyn std::error::Error>> {
     let client = blocking::Client::new();
     #[cfg(debug_assertions)]
-    eprint!("loading page {page} ({url}) ...");
+    eprint!("loading ({url}) ...");
     #[cfg(not(debug_assertions))]
-    eprint!("loading page {page} ...");
+    eprint!("loading ...");
     let res = client
         .get(url)
         .header(
@@ -37,15 +36,27 @@ fn get_stories(page: u16) -> Result<Vec<Story>, Box<dyn std::error::Error>> {
     eprintln!("\u{1b}[2K\rloaded ({status})");
 
     let html = scraper::Html::parse_document(&res.text()?);
+    Ok(html)
+}
+
+fn get_stories(page: u16) -> Result<Vec<Story>, Box<dyn std::error::Error>> {
+    let url = format!("{PAGE_URL}/{page}");
+    let html = get_page(url)?;
     let stories_selector = Selector::parse("ol.stories > .story > .story_liner").unwrap();
     let stories_list = html.select(&stories_selector);
     Ok(stories_list.map(Story::from_html).collect())
+}
+
+enum ViewMode {
+    List,
+    Comments,
 }
 
 struct View {
     stories: Vec<Story>,
     pos: usize,
     page_size: usize,
+    mode: ViewMode,
 }
 
 impl View {
@@ -55,6 +66,7 @@ impl View {
             stories: Vec::new(),
             pos: 0,
             page_size,
+            mode: ViewMode::List,
         }
     }
 
@@ -113,16 +125,36 @@ impl View {
         self.stories.get(pos)
     }
 
+    fn get_story_mut(&mut self, pos: usize) -> Option<&mut Story> {
+        self.stories.get_mut(pos)
+    }
+
     fn get_selected_story(&self) -> &Story {
         self.get_story(self.pos).unwrap()
     }
 
+    fn get_selected_story_mut(&mut self) -> &mut Story {
+        self.get_story_mut(self.pos).unwrap()
+    }
+
     fn generate_string(&mut self, width: u16) -> String {
-        let current_stories_page = self.paginate();
-        let displayed_stories = current_stories_page
-            .into_iter()
-            .map(|(selected, story)| display_story(&story, width - 3, selected));
-        displayed_stories.collect::<Vec<String>>().join("\n")
+        match self.mode {
+            ViewMode::List => {
+                let current_stories_page = self.paginate();
+                let displayed_stories = current_stories_page
+                    .into_iter()
+                    .map(|(selected, story)| display_story(&story, width - 3, selected));
+                displayed_stories.collect::<Vec<String>>().join("\n")
+            }
+            ViewMode::Comments => {
+                let comments = self.get_selected_story().comments();
+                if comments.len() > 0 {
+                    format!("{comments:#?}")
+                } else {
+                    "No comments, yet.".to_string()
+                }
+            }
+        }
     }
 
     fn pos(&self) -> usize {
@@ -141,6 +173,21 @@ impl View {
     /// The site page number is 1-indexed.
     fn site_page(&self) -> usize {
         self.pos / STORIES_PER_SITE_PAGE + 1
+    }
+
+    fn view_list(&mut self) {
+        self.mode = ViewMode::List
+    }
+
+    fn view_comments(&mut self) {
+        self.mode = ViewMode::Comments
+    }
+
+    fn view_toggle(&mut self) {
+        self.mode = match self.mode {
+            ViewMode::List => ViewMode::Comments,
+            ViewMode::Comments => ViewMode::List,
+        }
     }
 }
 
@@ -165,15 +212,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     'listen: loop {
         view.load_stories_next_page()?;
+        match view.mode {
+            ViewMode::Comments => view.get_selected_story_mut().load_comments()?,
+            _ => {}
+        }
         term.move_cursor_to(0, 0)?;
         term.clear_line()?;
 
         let s = view.generate_string(columns);
         #[cfg(debug_assertions)]
         term.write_fmt(format_args!(
-            "page {} (pos: {})\n",
+            "page {} (pos: {}, comments: {:?})\n",
             view.site_page(),
-            view.pos()
+            view.pos(),
+            view.get_selected_story().comments(),
         ))?;
         #[cfg(not(debug_assertions))]
         term.write_fmt(format_args!("page {}\n", view.site_page()))?;
@@ -195,14 +247,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Key::Char('k') | Key::ArrowUp => view.go_to(Travel::PrevStory),
             // l — >
             // Open comments.
-            // Key::Char('l') | Key::ArrowRight => {
-            //  todo!();
-            // }
+            Key::Char('l') | Key::ArrowRight => {
+                //view.get_selected_story_mut().load_comments()?;
+                view.view_comments()
+            }
             // h — <
             // Close comments.
-            // Key::Char('h') | Key::ArrowLeft => {
-            //  todo!();
-            // }
+            Key::Char('h') | Key::ArrowLeft => view.view_list(),
+            // Toggle comments.
+            Key::Char('c') | Key::Tab => {
+                //view.get_selected_story_mut().load_comments()?;
+                view.view_toggle()
+            }
             // g — ^^
             // Go to first page.
             Key::Char('g') => view.go_to(Travel::Top),
