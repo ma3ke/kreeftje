@@ -2,6 +2,8 @@
 
 This is a little terminal reader for [lobste.rs](https://lobste.rs/). I love reading the site, so I made a little terminal user interface for it. This is not finished, but that does not matter.
 
+![Screenshot, 2022-07-10](screenshot.png)
+
 ## Installation
 
 ```zsh
