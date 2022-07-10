@@ -487,7 +487,7 @@ impl ToString for Tag {
             Color::Blue => 152,
             Color::Red => 210,
             Color::Magenta => 102,
-            Color::Yellow => 94,
+            Color::Yellow => 222,
         };
         style(text).color256(code).to_string()
     }
