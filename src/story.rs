@@ -1,9 +1,6 @@
-use crate::get_page;
-use crate::Tag;
-use crate::URL;
+use crate::{get_page, Tag, URL};
 use console::style;
-use scraper::ElementRef;
-use scraper::Selector;
+use scraper::{ElementRef, Selector};
 use std::fmt::Display;
 use std::str::FromStr;
 
@@ -11,6 +8,19 @@ use std::str::FromStr;
 pub(crate) enum Byline {
     AuthoredBy(String),
     Via(String),
+}
+
+impl Display for Byline {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Byline::AuthoredBy(user) => format!("authored by {user}"),
+                Byline::Via(user) => format!("via {user}"),
+            }
+        )
+    }
 }
 
 impl Byline {
@@ -31,19 +41,6 @@ impl Byline {
             "authored by" => Self::AuthoredBy(user.to_string()),
             e => panic!("Cannot parse '{e}' into Byline"),
         }
-    }
-}
-
-impl Display for Byline {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Byline::AuthoredBy(user) => format!("authored by {user}"),
-                Byline::Via(user) => format!("via {user}"),
-            }
-        )
     }
 }
 
@@ -220,6 +217,35 @@ impl Story {
     }
 }
 
+fn wrap_escaped_to_lines(s: &str, max_width: u16) -> Vec<Vec<String>> {
+    let text_len = |s| console::strip_ansi_codes(s).len() as u16;
+    let words = s.split_whitespace();
+    let mut width = 0;
+    let mut lines: Vec<Vec<String>> = vec![vec![]];
+    for word in words {
+        width += text_len(word) + 1;
+        if width < max_width + 1 {
+            // Stil fits within the line.
+            lines.last_mut().unwrap().push(word.to_string());
+        } else {
+            // Word will not fit anymore.
+            lines.push(vec![word.to_string()]);
+            width = text_len(word) + 1;
+        }
+    }
+
+    lines
+}
+
+fn wrap_with_indent(s: &str, max_width: u16, indent: u16) -> String {
+    let spacer = " ".repeat(indent as usize);
+    wrap_escaped_to_lines(s, max_width - indent)
+        .iter()
+        .map(|l| l.join(" "))
+        .collect::<Vec<String>>()
+        .join(&format!("\n{spacer}"))
+}
+
 pub(crate) fn display_story(story: &Story, columns: u16, selected: bool) -> String {
     //  26    The Windows malloc() Implementation Is A Trash Fire [c] [c++] [rant] erikmcclure.com
     //        via cadey 24 hours ago | 7 comments
@@ -259,33 +285,4 @@ pub(crate) fn display_story(story: &Story, columns: u16, selected: bool) -> Stri
         console::pad_str(&votes, 5, console::Alignment::Center, None),
         " "
     )
-}
-
-fn wrap_escaped_to_lines(s: &str, max_width: u16) -> Vec<Vec<String>> {
-    let text_len = |s| console::strip_ansi_codes(s).len() as u16;
-    let words = s.split_whitespace();
-    let mut width = 0;
-    let mut lines: Vec<Vec<String>> = vec![vec![]];
-    for word in words {
-        width += text_len(word) + 1;
-        if width < max_width + 1 {
-            // Stil fits within the line.
-            lines.last_mut().unwrap().push(word.to_string());
-        } else {
-            // Word will not fit anymore.
-            lines.push(vec![word.to_string()]);
-            width = text_len(word) + 1;
-        }
-    }
-
-    lines
-}
-
-fn wrap_with_indent(s: &str, max_width: u16, indent: u16) -> String {
-    let spacer = " ".repeat(indent as usize);
-    wrap_escaped_to_lines(s, max_width - indent)
-        .iter()
-        .map(|l| l.join(" "))
-        .collect::<Vec<String>>()
-        .join(&format!("\n{spacer}"))
 }

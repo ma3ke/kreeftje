@@ -1,7 +1,7 @@
 use console::{Key, Term};
 use reqwest::blocking;
-use scraper::{ElementRef, Html, Selector};
-use std::{borrow::BorrowMut, io::Write};
+use scraper::{Html, Selector};
+use std::io::Write;
 
 mod story;
 mod tags;
@@ -12,11 +12,6 @@ use tags::Tag;
 const URL: &str = "https://lobste.rs";
 const PAGE_URL: &str = "https://lobste.rs/page";
 const STORIES_PER_SITE_PAGE: usize = 25;
-
-// fn stories_window(stories: Vec<Story>, start: usize, n: usize) -> Vec<Story> {
-//     let end = usize::min(start + n, stories.len());
-//     stories[start..end].to_vec()
-// }
 
 fn get_page(url: String) -> Result<Html, Box<dyn std::error::Error>> {
     let client = blocking::Client::new();
