@@ -1,3 +1,4 @@
+use console::style;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy)]
@@ -370,7 +371,7 @@ impl FromStr for Tag {
 impl ToString for Tag {
     fn to_string(&self) -> String {
         use Tag::*;
-        match self {
+        let text = match self {
             Ai => "ai",
             Compsci => "compsci",
             Distributed => "distributed",
@@ -481,7 +482,36 @@ impl ToString for Tag {
             Systemd => "systemd",
             Vcs => "vcs",
             Vim => "vim",
+        };
+        let code = match self.color() {
+            Color::Blue => 152,
+            Color::Red => 210,
+            Color::Magenta => 102,
+            Color::Yellow => 94,
+        };
+        style(text).color256(code).to_string()
+    }
+}
+
+enum Color {
+    /// Media
+    Blue,
+    /// Lobsters-related
+    Red,
+    /// Meta
+    Magenta,
+    /// All else
+    Yellow,
+}
+
+impl Tag {
+    fn color(&self) -> Color {
+        use Tag::*;
+        match self {
+            Audio | Book | Pdf | Slides | Transcript | Video => Color::Blue,
+            Ask | Show | Announce | Interview => Color::Red,
+            Meta => Color::Magenta,
+            _ => Color::Yellow,
         }
-        .to_string()
     }
 }
