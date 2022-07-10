@@ -58,15 +58,23 @@ impl Comment {
         let s = |s| {
             html.select(&Selector::parse(s).unwrap())
                 .next()
-                .expect("b")
+                .unwrap()
                 .text()
                 .next()
         };
 
+        let id = html
+            .select(&Selector::parse(".comment").unwrap())
+            .next()
+            .unwrap()
+            .value()
+            .id()
+            .unwrap();
+
         Self {
-            votes: usize::from_str(s(".comment > .voters > .score").expect("c")).unwrap_or(0),
+            votes: usize::from_str(s(".comment .voters .score").unwrap()).unwrap_or(0),
             author: html
-                .select(&Selector::parse(".comment > .details > .byline a").unwrap())
+                .select(&Selector::parse(".comment .details .byline a").unwrap())
                 .nth(2)
                 .unwrap()
                 .text()
@@ -74,7 +82,7 @@ impl Comment {
                 .unwrap()
                 .to_string(),
             time: html
-                .select(&Selector::parse(".comment > .details > .byline > span").unwrap())
+                .select(&Selector::parse(".comment .details .byline span").unwrap())
                 .next()
                 .unwrap()
                 .text()
@@ -82,16 +90,21 @@ impl Comment {
                 .unwrap()
                 .to_string(),
             content: html
-                .select(&Selector::parse(".comment > .details > .comment_text").unwrap())
+                .select(&Selector::parse(".comment .details .comment_text").unwrap())
                 .next()
                 .unwrap()
                 .text()
                 .map(|element| element.to_string())
                 .collect(),
             children: {
-                html.select(&Selector::parse(".comment > .comments > .comments_subtree").unwrap())
-                    .map(|subtree| Comment::from_html(subtree))
-                    .collect()
+                html.select(
+                    &Selector::parse(&format!(
+                        ".comment#{id} ~ ol.comments > li.comments_subtree"
+                    ))
+                    .unwrap(),
+                )
+                .map(|subtree| Comment::from_html(subtree))
+                .collect()
             },
         }
     }
@@ -205,7 +218,8 @@ impl Story {
             return Ok(());
         }
         let html = get_page(self.comments_url.clone())?;
-        let comments_selector = Selector::parse("ol.comments > li.comments_subtree").unwrap();
+        let comments_selector =
+            Selector::parse("#inside > ol.comments > li.comments_subtree").unwrap();
         let comments_list = html.select(&comments_selector).skip(1);
         let comments = comments_list.map(Comment::from_html).collect();
         self.comments = comments;
