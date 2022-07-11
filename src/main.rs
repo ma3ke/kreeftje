@@ -144,9 +144,6 @@ impl View {
             ViewMode::Comments => {
                 let margin = 2;
                 let comments = self.get_selected_story().comments();
-                let path = "comments.txt";
-                let mut output = std::fs::File::create(path).unwrap();
-                write!(output, "{:#?}", comments).unwrap();
                 if comments.len() > 0 {
                     comments
                         .iter()
