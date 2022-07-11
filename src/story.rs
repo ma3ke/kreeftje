@@ -277,6 +277,17 @@ impl Story {
     pub(crate) fn comments(&self) -> &Vec<Comment> {
         &self.comments
     }
+
+    pub(crate) fn comments_descendants(&self) -> usize {
+        self.comments()
+            .iter()
+            .map(|comment| comment.descendants_count())
+            .sum()
+    }
+
+    pub(crate) fn comments_number(&self) -> usize {
+        self.comments_number
+    }
 }
 
 fn wrap_escaped_to_lines(s: &str, max_width: u16) -> Vec<Vec<String>> {

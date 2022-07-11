@@ -57,7 +57,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     'listen: loop {
         view.load_stories_next_page()?;
         if let ViewMode::Comments = view.mode() {
-            view.get_selected_story_mut().load_comments()?
+            let story = view.get_selected_story_mut();
+
+            if story.comments_descendants() != story.comments_number() {
+                story.load_comments()?
+            }
         }
         term.move_cursor_to(0, 0)?;
         term.clear_line()?;
@@ -68,11 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "page {} (pos: {}, stored comments count: {})\n",
             view.site_page(),
             view.pos(),
-            view.get_selected_story()
-                .comments()
-                .iter()
-                .map(|comment| comment.descendants_count())
-                .sum::<usize>(),
+            view.get_selected_story().comments_descendants()
         ))?;
         #[cfg(not(debug_assertions))]
         term.write_fmt(format_args!("page {}\n", view.site_page()))?;
