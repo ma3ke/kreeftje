@@ -484,7 +484,7 @@ impl ToString for Tag {
             Vim => "vim",
         };
         let code = match self.color() {
-            Color::Blue => 152,
+            Color::Blue => 117,
             Color::Red => 210,
             Color::Magenta => 102,
             Color::Yellow => 222,
