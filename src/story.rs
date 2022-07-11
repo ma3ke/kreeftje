@@ -122,6 +122,12 @@ fn wrap(s: String, width: usize) -> String {
         .collect::<Vec<String>>()
         .join("\n")
 }
+
+pub(crate) fn prepend_string(s: &str, prefix: &str) -> String {
+    s.lines()
+        .map(|line| format!("{prefix}{line}"))
+        .collect::<Vec<String>>()
+        .join("\n")
 }
 
 #[derive(Debug, Clone)]
