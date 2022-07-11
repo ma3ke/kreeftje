@@ -108,6 +108,20 @@ impl Comment {
             },
         }
     }
+fn wrap(s: String, width: usize) -> String {
+    s.lines()
+        .map(|line| {
+            line.trim_end()
+                .chars()
+                .collect::<Vec<char>>()
+                .chunks(width)
+                .map(|chunk| format!("{}", chunk.iter().collect::<String>().trim()))
+                .collect::<Vec<String>>()
+                .join("\n")
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
 }
 
 #[derive(Debug, Clone)]
