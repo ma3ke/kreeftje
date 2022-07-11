@@ -233,7 +233,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "page {} (pos: {}, stored comments count: {})\n",
             view.site_page(),
             view.pos(),
-            view.get_selected_story().comments().len(),
+            view.get_selected_story()
+                .comments()
+                .iter()
+                .map(|comment| comment.descendants_count())
+                .sum::<usize>(),
         ))?;
         #[cfg(not(debug_assertions))]
         term.write_fmt(format_args!("page {}\n", view.site_page()))?;
