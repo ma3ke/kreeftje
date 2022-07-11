@@ -6,7 +6,7 @@ use std::io::Write;
 mod story;
 mod tags;
 
-use story::{display_story, Story};
+use story::{display_story, prepend_string, Story};
 use tags::Tag;
 
 const URL: &str = "https://lobste.rs";
@@ -142,9 +142,22 @@ impl View {
                 displayed_stories.collect::<Vec<String>>().join("\n")
             }
             ViewMode::Comments => {
+                let margin = 2;
                 let comments = self.get_selected_story().comments();
+                let path = "comments.txt";
+                let mut output = std::fs::File::create(path).unwrap();
+                write!(output, "{:#?}", comments).unwrap();
                 if comments.len() > 0 {
-                    format!("{comments:#?}")
+                    comments
+                        .iter()
+                        .map(|comment| {
+                            prepend_string(
+                                &comment.to_string(width as usize - (margin * 2)),
+                                &" ".repeat(margin),
+                            )
+                        })
+                        .collect::<Vec<String>>()
+                        .join("\n")
                 } else {
                     "No comments, yet.".to_string()
                 }
