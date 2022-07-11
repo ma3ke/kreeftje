@@ -126,6 +126,14 @@ impl Comment {
             .join("\n");
         format!("{byline}\n{content}\n{children}")
     }
+
+    pub(crate) fn descendants_count(&self) -> usize {
+        self.children
+            .iter()
+            .map(|child| child.descendants_count())
+            .sum::<usize>()
+            + 1
+    }
 }
 
 fn wrap(s: String, width: usize) -> String {
