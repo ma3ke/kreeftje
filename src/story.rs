@@ -108,6 +108,26 @@ impl Comment {
             },
         }
     }
+
+    pub fn to_string(&self, width: usize) -> String {
+        let indent = "⸾   ";
+        let byline = style(format!("({}) {} {}", self.votes, self.author, self.time)).dim();
+        let content = wrap(self.content.trim().to_string(), width);
+        let children = &self
+            .children
+            .iter()
+            .map(|comment| {
+                prepend_string(
+                    &comment.to_string(width - indent.len() + 2),
+                    &style(indent).dim().to_string(),
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        format!("{byline}\n{content}\n{children}")
+    }
+}
+
 fn wrap(s: String, width: usize) -> String {
     s.lines()
         .map(|line| {
