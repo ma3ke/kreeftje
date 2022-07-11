@@ -144,7 +144,7 @@ impl View {
             ViewMode::Comments => {
                 let margin = 2;
                 let comments = self.get_selected_story().comments();
-                if comments.len() > 0 {
+                if !comments.is_empty() {
                     comments
                         .iter()
                         .map(|comment| {
@@ -217,9 +217,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     'listen: loop {
         view.load_stories_next_page()?;
-        match view.mode {
-            ViewMode::Comments => view.get_selected_story_mut().load_comments()?,
-            _ => {}
+        if let ViewMode::Comments = view.mode {
+            view.get_selected_story_mut().load_comments()?
         }
         term.move_cursor_to(0, 0)?;
         term.clear_line()?;

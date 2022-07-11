@@ -103,7 +103,7 @@ impl Comment {
                     ))
                     .unwrap(),
                 )
-                .map(|subtree| Comment::from_html(subtree))
+                .map(Comment::from_html)
                 .collect()
             },
         }
@@ -143,7 +143,7 @@ fn wrap(s: String, width: usize) -> String {
                 .chars()
                 .collect::<Vec<char>>()
                 .chunks(width)
-                .map(|chunk| format!("{}", chunk.iter().collect::<String>().trim()))
+                .map(|chunk| chunk.iter().collect::<String>().trim().to_string())
                 .collect::<Vec<String>>()
                 .join("\n")
         })
