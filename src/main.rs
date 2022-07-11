@@ -230,10 +230,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let s = view.generate_string(columns);
         #[cfg(debug_assertions)]
         term.write_fmt(format_args!(
-            "page {} (pos: {}, comments: {:?})\n",
+            "page {} (pos: {}, stored comments count: {})\n",
             view.site_page(),
             view.pos(),
-            view.get_selected_story().comments(),
+            view.get_selected_story().comments().len(),
         ))?;
         #[cfg(not(debug_assertions))]
         term.write_fmt(format_args!("page {}\n", view.site_page()))?;
