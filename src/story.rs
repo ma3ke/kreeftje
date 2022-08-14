@@ -110,7 +110,7 @@ impl Comment {
     }
 
     pub fn to_string(&self, width: usize) -> String {
-        let indent = "⸾   ";
+        let indent = "│   ";
         let byline = style(format!("({}) {} {}", self.votes, self.author, self.time)).dim();
         let content = wrap(self.content.trim().to_string(), width);
         let children = &self
