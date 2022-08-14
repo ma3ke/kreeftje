@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         term.move_cursor_to(0, 0)?;
         term.clear_line()?;
 
-        let s = view.generate_string(columns);
+        let view_string = view.generate_string(columns);
         #[cfg(debug_assertions)]
         term.write_fmt(format_args!(
             "page {} (pos: {}, stored comments count: {})\n",
@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ))?;
         #[cfg(not(debug_assertions))]
         term.write_fmt(format_args!("page {}\n", view.site_page()))?;
-        term.write_all(s.as_bytes())?;
+        term.write_all(view_string.as_bytes())?;
         let input = term.read_key()?;
 
         match input {
