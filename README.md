@@ -30,14 +30,19 @@ cargo run --release
 
 Within the program, the following key bindings can be used for navigation.
 
+&larr;, &rarr;, `h`, `l`
+: Move between the stories list and comments view.
+
 &darr;, &uarr;, `j`, `k`
-: Select next and previous stories in the page.
+: Select next and previous stories in the stories list page. 
+Move up and down in the comments view.
 
 `J`, `K`
-: Move to the next and previous page.
+: Move to the next and previous page when in the stories list. 
+Move to the next and previous story when in the comments view.
 
 `g`, `G`
-: Move to the top and bottom of the stories list.
+: Move to the top and bottom of the stories list or comments view.
 
 `o`, `Enter`
 : Open the selected story in the browser.
