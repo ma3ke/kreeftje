@@ -53,7 +53,7 @@ The name 'kreeftje' is dutch for little lobster. Because my program is like a ti
 
 ## Things I might implement
 
-- [ ] Ability to read comments associated with the stories. Comments could then be accessed through a rightward motion (&rarr; or `l`), and navigated in a separate view.
+- [x] Ability to read comments associated with the stories. Comments can be accessed through a rightward motion (&rarr; or `l`), and navigated in a separate view.
 - [x] Tag coloring, just like on the site.
 - [ ] Command line arguments to specify preferences.
 - [ ] Config file abilities.
