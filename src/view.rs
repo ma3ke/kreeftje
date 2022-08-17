@@ -136,7 +136,6 @@ impl View {
                         .map(|line| line.to_string())
                         .collect::<Vec<String>>();
 
-                    eprintln!("len: {}, height: {height}", lines.len());
                     if lines.len() > height as usize {
                         self.comments_pos =
                             self.comments_pos.clamp(0, lines.len() - height as usize);
