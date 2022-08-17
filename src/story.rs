@@ -1,8 +1,6 @@
-use crate::Tag;
-use crate::URL;
+use crate::{get_page, Tag, URL};
 use console::style;
-use scraper::ElementRef;
-use scraper::Selector;
+use scraper::{ElementRef, Selector};
 use std::fmt::Display;
 use std::str::FromStr;
 
@@ -10,6 +8,19 @@ use std::str::FromStr;
 pub(crate) enum Byline {
     AuthoredBy(String),
     Via(String),
+}
+
+impl Display for Byline {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Byline::AuthoredBy(user) => format!("authored by {user}"),
+                Byline::Via(user) => format!("via {user}"),
+            }
+        )
+    }
 }
 
 impl Byline {
@@ -33,17 +44,118 @@ impl Byline {
     }
 }
 
-impl Display for Byline {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Byline::AuthoredBy(user) => format!("authored by {user}"),
-                Byline::Via(user) => format!("via {user}"),
-            }
-        )
+#[derive(Debug, Clone)]
+pub(crate) struct Comment {
+    votes: usize,
+    author: String,
+    time: String,
+    content: String,
+    children: Vec<Comment>,
+}
+
+impl Comment {
+    pub(crate) fn from_html(html: ElementRef) -> Self {
+        let s = |s| {
+            html.select(&Selector::parse(s).unwrap())
+                .next()
+                .unwrap()
+                .text()
+                .next()
+        };
+
+        let id = html
+            .select(&Selector::parse(".comment").unwrap())
+            .next()
+            .unwrap()
+            .value()
+            .id()
+            .unwrap();
+
+        Self {
+            votes: usize::from_str(s(".comment .voters .score").unwrap()).unwrap_or(0),
+            author: html
+                .select(&Selector::parse(".comment .details .byline a").unwrap())
+                .nth(2)
+                .unwrap()
+                .text()
+                .next()
+                .unwrap()
+                .to_string(),
+            time: html
+                .select(&Selector::parse(".comment .details .byline span").unwrap())
+                .next()
+                .unwrap()
+                .text()
+                .next()
+                .unwrap()
+                .to_string(),
+            content: html
+                .select(&Selector::parse(".comment .details .comment_text").unwrap())
+                .next()
+                .unwrap()
+                .text()
+                .map(|element| element.to_string())
+                .collect(),
+            children: {
+                html.select(
+                    &Selector::parse(&format!(
+                        ".comment#{id} ~ ol.comments > li.comments_subtree"
+                    ))
+                    .unwrap(),
+                )
+                .map(Comment::from_html)
+                .collect()
+            },
+        }
     }
+
+    pub fn to_string(&self, width: usize) -> String {
+        let indent = "│   ";
+        let byline = style(format!("({}) {} {}", self.votes, self.author, self.time)).dim();
+        let content = wrap(self.content.trim().to_string(), width);
+        let children = &self
+            .children
+            .iter()
+            .map(|comment| {
+                prepend_string(
+                    &comment.to_string(width - indent.len() + 2),
+                    &style(indent).dim().to_string(),
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        format!("{byline}\n{content}\n{children}")
+    }
+
+    pub(crate) fn descendants_count(&self) -> usize {
+        self.children
+            .iter()
+            .map(|child| child.descendants_count())
+            .sum::<usize>()
+            + 1
+    }
+}
+
+fn wrap(s: String, width: usize) -> String {
+    s.lines()
+        .map(|line| {
+            line.trim_end()
+                .chars()
+                .collect::<Vec<char>>()
+                .chunks(width)
+                .map(|chunk| chunk.iter().collect::<String>().trim().to_string())
+                .collect::<Vec<String>>()
+                .join("\n")
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+pub(crate) fn prepend_string(s: &str, prefix: &str) -> String {
+    s.lines()
+        .map(|line| format!("{prefix}{line}"))
+        .collect::<Vec<String>>()
+        .join("\n")
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +167,9 @@ pub(crate) struct Story {
     domain: Option<String>,
     byline: Byline,
     time: String,
-    comments: usize,
+    comments_number: usize,
+    comments_url: String,
+    comments: Vec<Comment>,
     url: String,
 }
 
@@ -103,7 +217,7 @@ impl Story {
                 .unwrap()
                 .to_string(),
 
-            comments: match s(".details > .byline > .comments_label > a")
+            comments_number: match s(".details > .byline > .comments_label > a")
                 .unwrap()
                 .split_whitespace()
                 .next()
@@ -111,6 +225,18 @@ impl Story {
             {
                 "no" => 0,
                 n => usize::from_str(n).unwrap(),
+            },
+            comments: Vec::new(),
+            comments_url: {
+                let url = html
+                    .select(&Selector::parse(".details > .byline > .comments_label > a").unwrap())
+                    .next()
+                    .unwrap()
+                    .value()
+                    .attr("href")
+                    .unwrap()
+                    .to_owned();
+                format!("{URL}/{url}")
             },
             url: {
                 let url = html
@@ -133,47 +259,35 @@ impl Story {
     pub(crate) fn url(&self) -> &String {
         &self.url
     }
-}
 
-pub(crate) fn display_story(story: &Story, columns: u16, selected: bool) -> String {
-    //  26    The Windows malloc() Implementation Is A Trash Fire [c] [c++] [rant] erikmcclure.com
-    //        via cadey 24 hours ago | 7 comments
-    let tags = story
-        .tags
-        .iter()
-        .map(|t| format!("{}", style(t.to_string()).color256(94)))
-        .collect::<Vec<String>>()
-        .join(" ");
-    let upper = format!(
-        "{title} {description} {tags}  {domain}",
-        title = style(&story.title).bold(),
-        description = if story.description { "☶ " } else { "" },
-        domain = style(match &story.domain {
-            Some(d) => d,
-            None => "",
-        })
-        .italic()
-        .dim()
-    );
-    let upper = wrap_with_indent(&upper, columns, 3 + 2);
-    let lower = format!(
-        "{} {} | {} comment{}",
-        story.byline,
-        story.time,
-        story.comments,
-        if story.comments == 1 { "" } else { "s" }
-    );
-    let lower = style(wrap_with_indent(&lower, columns, 3 + 2)).dim();
-    let votes = if selected {
-        style(story.votes).reverse().to_string()
-    } else {
-        story.votes.to_string()
-    };
-    format!(
-        "{}{upper}\n{:>3}  {lower}",
-        console::pad_str(&votes, 5, console::Alignment::Center, None),
-        " "
-    )
+    pub(crate) fn load_comments(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // In case the comments have already been loaded, just return.
+        if self.comments_number == self.comments.len() {
+            return Ok(());
+        }
+        let html = get_page(self.comments_url.clone())?;
+        let comments_selector =
+            Selector::parse("#inside > ol.comments > li.comments_subtree").unwrap();
+        let comments_list = html.select(&comments_selector).skip(1);
+        let comments = comments_list.map(Comment::from_html).collect();
+        self.comments = comments;
+        Ok(())
+    }
+
+    pub(crate) fn comments(&self) -> &Vec<Comment> {
+        &self.comments
+    }
+
+    pub(crate) fn comments_descendants(&self) -> usize {
+        self.comments()
+            .iter()
+            .map(|comment| comment.descendants_count())
+            .sum()
+    }
+
+    pub(crate) fn comments_number(&self) -> usize {
+        self.comments_number
+    }
 }
 
 fn wrap_escaped_to_lines(s: &str, max_width: u16) -> Vec<Vec<String>> {
@@ -203,4 +317,45 @@ fn wrap_with_indent(s: &str, max_width: u16, indent: u16) -> String {
         .map(|l| l.join(" "))
         .collect::<Vec<String>>()
         .join(&format!("\n{spacer}"))
+}
+
+pub(crate) fn display_story(story: &Story, columns: u16, selected: bool) -> String {
+    //  26    The Windows malloc() Implementation Is A Trash Fire [c] [c++] [rant] erikmcclure.com
+    //        via cadey 24 hours ago | 7 comments
+    let tags = story
+        .tags
+        .iter()
+        .map(|t| format!("{}", style(t.to_string()).color256(94)))
+        .collect::<Vec<String>>()
+        .join(" ");
+    let upper = format!(
+        "{title} {description} {tags}  {domain}",
+        title = style(&story.title).bold(),
+        description = if story.description { "☶ " } else { "" },
+        domain = style(match &story.domain {
+            Some(d) => d,
+            None => "",
+        })
+        .italic()
+        .dim()
+    );
+    let upper = wrap_with_indent(&upper, columns, 3 + 2);
+    let lower = format!(
+        "{} {} | {} comment{}",
+        story.byline,
+        story.time,
+        story.comments_number,
+        if story.comments_number == 1 { "" } else { "s" }
+    );
+    let lower = style(wrap_with_indent(&lower, columns, 3 + 2)).dim();
+    let votes = if selected {
+        style(story.votes).reverse().to_string()
+    } else {
+        story.votes.to_string()
+    };
+    format!(
+        "{}{upper}\n{:>3}  {lower}",
+        console::pad_str(&votes, 5, console::Alignment::Center, None),
+        " "
+    )
 }
