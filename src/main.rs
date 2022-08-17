@@ -66,12 +66,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         term.move_cursor_to(0, 0)?;
         term.clear_line()?;
 
-        let view_string = view.generate_string(columns);
+        let view_string = view.generate_string(columns, rows);
         #[cfg(debug_assertions)]
         term.write_fmt(format_args!(
-            "page {} (pos: {}, stored comments count: {})\n",
+            "page {} (list_pos: {}, comments_pos: {}, stored comments count: {})\n",
             view.site_page(),
             view.pos(),
+            view.comments_pos,
             view.get_selected_story().comments_descendants()
         ))?;
         #[cfg(not(debug_assertions))]
@@ -82,16 +83,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match input {
             // J — vv
             // Load next page.
-            Key::Char('J') => view.go_to(Travel::NextPage),
+            Key::Char('J') => view.go_to(Travel::NextStep),
             // K — ^^
             // Load previous page.
-            Key::Char('K') => view.go_to(Travel::PrevPage),
+            Key::Char('K') => view.go_to(Travel::PrevStep),
             // j — v
             // Select next story.
-            Key::Char('j') | Key::ArrowDown => view.go_to(Travel::NextStory),
+            Key::Char('j') | Key::ArrowDown => view.go_to(Travel::NextItem),
             // k — ^
             // Select other story.
-            Key::Char('k') | Key::ArrowUp => view.go_to(Travel::PrevStory),
+            Key::Char('k') | Key::ArrowUp => view.go_to(Travel::PrevItem),
             // l — >
             // Open comments.
             Key::Char('l') | Key::ArrowRight => view.view_comments(),

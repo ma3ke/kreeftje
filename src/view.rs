@@ -9,7 +9,8 @@ pub(crate) enum ViewMode {
 
 pub(crate) struct View {
     stories: Vec<Story>,
-    pos: usize,
+    list_pos: usize,
+    pub comments_pos: usize,
     page_size: usize,
     mode: ViewMode,
 }
@@ -19,7 +20,8 @@ impl View {
     pub(crate) fn new(page_size: usize) -> Self {
         Self {
             stories: Vec::new(),
-            pos: 0,
+            list_pos: 0,
+            comments_pos: 0,
             page_size,
             mode: ViewMode::List,
         }
@@ -48,8 +50,8 @@ impl View {
         // If the current stories list can accomodate another view page, do nothing. Otherwise,
         // load new stories.
 
-        if self.stories.len() < self.pos + self.page_size - (self.pos % self.page_size) {
-            self.load_stories_including(self.pos + STORIES_PER_SITE_PAGE - 1)?;
+        if self.stories.len() < self.list_pos + self.page_size - (self.list_pos % self.page_size) {
+            self.load_stories_including(self.list_pos + STORIES_PER_SITE_PAGE - 1)?;
         }
 
         Ok(())
@@ -61,18 +63,33 @@ impl View {
         chunk
             .iter()
             .enumerate()
-            .map(|(idx, story)| (idx == self.pos % self.page_size, story.to_owned()))
+            .map(|(idx, story)| (idx == self.list_pos % self.page_size, story.to_owned()))
             .collect()
     }
 
     pub(crate) fn go_to(&mut self, travel: Travel) {
-        match travel {
-            Travel::NextPage => self.pos += self.page_size,
-            Travel::PrevPage => self.pos -= self.pos.min(self.page_size),
-            Travel::NextStory => self.pos += 1,
-            Travel::PrevStory => self.pos -= self.pos.min(1),
-            Travel::Top => self.pos = 0,
-            Travel::Bottom => self.pos = self.stories.len() - 1,
+        match self.mode {
+            ViewMode::List => {
+                match travel {
+                    Travel::NextStep => self.list_pos += self.page_size,
+                    Travel::PrevStep => self.list_pos -= self.list_pos.min(self.page_size),
+                    Travel::NextItem => self.list_pos += 1,
+                    Travel::PrevItem => self.list_pos -= self.list_pos.min(1),
+                    Travel::Top => self.list_pos = 0,
+                    Travel::Bottom => self.list_pos = self.stories.len() - 1,
+                }
+                // Reset the comments_pos every time a movement occurs in the List ViewMode.
+                self.comments_pos = 0;
+            }
+            ViewMode::Comments => match travel {
+                Travel::NextStep => self.list_pos += 1,
+                Travel::PrevStep => self.list_pos -= self.list_pos.min(1),
+                Travel::NextItem => self.comments_pos += 1,
+                Travel::PrevItem => self.comments_pos -= self.comments_pos.min(1),
+                Travel::Top => self.comments_pos = 0,
+                // HACK: This is a very lousy way of traveling to the bottom of the comments view.
+                Travel::Bottom => self.comments_pos = 1_000_000,
+            },
         }
     }
 
@@ -85,14 +102,14 @@ impl View {
     }
 
     pub(crate) fn get_selected_story(&self) -> &Story {
-        self.get_story(self.pos).unwrap()
+        self.get_story(self.list_pos).unwrap()
     }
 
     pub(crate) fn get_selected_story_mut(&mut self) -> &mut Story {
-        self.get_story_mut(self.pos).unwrap()
+        self.get_story_mut(self.list_pos).unwrap()
     }
 
-    pub(crate) fn generate_string(&mut self, width: u16) -> String {
+    pub(crate) fn generate_string(&mut self, width: u16, height: u16) -> String {
         match self.mode {
             ViewMode::List => {
                 let current_stories_page = self.paginate();
@@ -105,7 +122,7 @@ impl View {
                 let margin = 2;
                 let comments = self.get_selected_story().comments();
                 if !comments.is_empty() {
-                    comments
+                    let lines = comments
                         .iter()
                         .map(|comment| {
                             prepend_string(
@@ -115,6 +132,20 @@ impl View {
                         })
                         .collect::<Vec<String>>()
                         .join("\n")
+                        .lines()
+                        .map(|line| line.to_string())
+                        .collect::<Vec<String>>();
+
+                    eprintln!("len: {}, height: {height}", lines.len());
+                    if lines.len() > height as usize {
+                        self.comments_pos =
+                            self.comments_pos.clamp(0, lines.len() - height as usize);
+                        let start = self.comments_pos.clamp(0, lines.len() - height as usize);
+                        let end = lines.len().min(self.comments_pos + height as usize);
+                        lines[start..end].join("\n")
+                    } else {
+                        lines.join("\n")
+                    }
                 } else {
                     "No comments, yet.".to_string()
                 }
@@ -123,11 +154,11 @@ impl View {
     }
 
     pub(crate) fn pos(&self) -> usize {
-        self.pos
+        self.list_pos
     }
 
     fn view_page(&self) -> usize {
-        self.pos / self.page_size
+        self.list_pos / self.page_size
     }
 
     /// Returns the number of the site page the story under the position of the view can be found
@@ -137,7 +168,7 @@ impl View {
     ///
     /// The site page number is 1-indexed.
     pub(crate) fn site_page(&self) -> usize {
-        self.pos / STORIES_PER_SITE_PAGE + 1
+        self.list_pos / STORIES_PER_SITE_PAGE + 1
     }
 
     pub(crate) fn view_list(&mut self) {
@@ -161,10 +192,10 @@ impl View {
 }
 
 pub(crate) enum Travel {
-    NextPage,
-    PrevPage,
-    NextStory,
-    PrevStory,
+    NextStep,
+    PrevStep,
+    NextItem,
+    PrevItem,
     Top,
     Bottom,
 }
