@@ -8,6 +8,7 @@ use std::str::FromStr;
 pub(crate) enum Byline {
     AuthoredBy(String),
     Via(String),
+    Unknown,
 }
 
 impl Display for Byline {
@@ -18,6 +19,7 @@ impl Display for Byline {
             match self {
                 Byline::AuthoredBy(user) => format!("authored by {user}"),
                 Byline::Via(user) => format!("via {user}"),
+                Byline::Unknown => String::new(),
             }
         )
     }
@@ -25,8 +27,8 @@ impl Display for Byline {
 
 impl Byline {
     fn from_html(html: ElementRef) -> Self {
-        // Take the second element, which contains 'via' or 'authored by'.
-        let t = html.text().nth(1).unwrap();
+        // Take the third element, which contains 'via' or 'authored by'.
+        let t = html.text().nth(2).unwrap();
 
         let user = html
             .select(&Selector::parse(".u-author").unwrap())
@@ -39,7 +41,10 @@ impl Byline {
         match t.trim() {
             "via" => Self::Via(user.to_string()),
             "authored by" => Self::AuthoredBy(user.to_string()),
-            e => panic!("Cannot parse '{e}' into Byline"),
+            e => {
+                eprintln!("Cannot parse '{e}' into Byline. Perhaps the structure of the DOM has changed. Please open a quick issue at https://github.com/KoenWestendorp/kreeftje/issues/new . Thanks :)");
+                Self::Unknown
+            }
         }
     }
 }
@@ -210,13 +215,13 @@ impl Story {
             ),
             time: html
                 .select(&Selector::parse(".details > .byline > span").unwrap())
+                .skip(1)
                 .next()
                 .unwrap()
                 .text()
                 .next()
                 .unwrap()
                 .to_string(),
-
             comments_number: match s(".details > .byline > .comments_label > a")
                 .unwrap()
                 .split_whitespace()
