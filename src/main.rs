@@ -80,6 +80,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         term.write_all(view_string.as_bytes())?;
         let input = term.read_key()?;
 
+        let mut prev_site_page = view.view_page();
+
         match input {
             // J — vv
             // Load next page.
@@ -120,7 +122,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
 
-        term.clear_screen()?;
+        if view.mode() == ViewMode::Comments || prev_site_page != view.view_page() {
+            term.clear_screen()?;
+        }
+        term.move_cursor_to(0, 0)?;
+        term.clear_line()?;
     }
 
     term.clear_screen()?;

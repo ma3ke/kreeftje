@@ -1,7 +1,7 @@
 use crate::story::{display_story, prepend_string, Story};
 use crate::{get_stories, STORIES_PER_SITE_PAGE};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ViewMode {
     List,
     Comments,
@@ -156,7 +156,7 @@ impl View {
         self.list_pos
     }
 
-    fn view_page(&self) -> usize {
+    pub(crate) fn view_page(&self) -> usize {
         self.list_pos / self.page_size
     }
 
