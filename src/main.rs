@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         term.write_all(view_string.as_bytes())?;
         let input = term.read_key()?;
 
-        let mut prev_site_page = view.view_page();
+        let prev_site_page = view.view_page();
 
         match input {
             // J — vv
