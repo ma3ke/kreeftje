@@ -81,6 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let input = term.read_key()?;
 
         let prev_site_page = view.view_page();
+        let prev_view_mode = view.mode();
 
         match input {
             // J — vv
@@ -122,7 +123,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
 
-        if view.mode() == ViewMode::Comments || prev_site_page != view.view_page() {
+        if view.mode() == ViewMode::Comments
+            || prev_view_mode != view.mode()
+            || prev_site_page != view.view_page()
+        {
             term.clear_screen()?;
         }
         term.move_cursor_to(0, 0)?;
